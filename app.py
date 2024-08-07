@@ -1,3 +1,4 @@
+import nest_asyncio
 from io import BytesIO
 import os
 import asyncio
@@ -10,6 +11,7 @@ import streamlit as st
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.node_parser import SentenceSplitter
 from llama_parse import LlamaParse
+nest_asyncio.apply()
 
 def verify_gemini_api_key(api_key):
     API_VERSION = 'v1'
