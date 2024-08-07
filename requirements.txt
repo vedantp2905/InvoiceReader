@@ -10,4 +10,4 @@ llama-index == 0.10.52
 llama_parse==0.4.4
 embedchain
 llama-index-llms-langchain==0.1.4
-llama-index-llms-fireworks==0.1.5
+llama-index-llms-fireworks==0.1.8
