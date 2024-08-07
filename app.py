@@ -62,7 +62,7 @@ def generate_text(parser, llm, file_path):
     documents = parser.load_data(file_path)
     index = VectorStoreIndex.from_documents(documents, transformations=[SentenceSplitter(chunk_size=512)])
     query_engine = index.as_query_engine()
-    result = query_engine.query("Could you format this invoice data in a dictionary format which can then be used to create a dataframe. Dictionary keys should be- Invoice Number, Date, Customer Name, All items, Amount for each correspinding item, Total amount. Example - {'Invoice Number': 'US-001', 'Date': '11/02/2019', 'Customer Name': 'John Smith', 'All items': ['Front and rear brake cables', 'New set of pedal arms', 'Labor 3hrs'], 'Amount for each corresponding item': [100.00, 30.00, 15.00], 'Total amount': 154.06 }")
+    result = query_engine.query("Could you format this invoice data in a dictionary format which can then be used to create a dataframe. Dictionary keys should be- Invoice Number, Date, Customer Name, All items, Amount for each correspinding item, Total amount. Items should include heading and text under the heading for each item Example: {'Invoice Number': 'US-001', 'Date': '11/02/2019', 'Customer Name': 'John Smith', 'All items': ['Front and rear brake cables', 'New set of pedal arms', 'Labor 3hrs'], 'Amount for each corresponding item': [100.00, 30.00, 15.00], 'Total amount': 154.06 }")
     
     return result['text'] if isinstance(result, dict) and 'text' in result else str(result)
 
