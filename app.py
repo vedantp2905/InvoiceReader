@@ -2,18 +2,14 @@ from io import BytesIO
 import os
 import asyncio
 import re
-from docx import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 import pandas as pd
 import requests
 import streamlit as st
-from crewai import Agent, Task, Crew
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.node_parser import SentenceSplitter
 from llama_parse import LlamaParse
-import nest_asyncio
-nest_asyncio.apply()
 
 def verify_gemini_api_key(api_key):
     API_VERSION = 'v1'
