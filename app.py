@@ -50,7 +50,7 @@ def verify_gpt_api_key(api_key):
         return False
 
 def init_parser(api_key):
-    return(LlamaParse(api_key=api_key,result_type="markdown", verbose=True))
+    return LlamaParse(api_key=api_key, result_type="markdown", verbose=True)
 
 def generate_text(parser, llm, file_path):
     Settings.chunk_size = 512
@@ -62,18 +62,34 @@ def generate_text(parser, llm, file_path):
     documents = parser.load_data(file_path)
     index = VectorStoreIndex.from_documents(documents, transformations=[SentenceSplitter(chunk_size=512)])
     query_engine = index.as_query_engine()
-    result = query_engine.query("""Could you format this invoice data in a dictionary format 
-                                which can then be used to create a dataframe. Dictionary keys
-                                should be- Invoice Number, Date, Customer Name, All items, Amount
-                                for each correspinding item, Total amount. Items should include 
-                                heading and text under the heading for each item: Example: {'Invoice
-                                Number': 'US-001', 'Date': '11/02/2019', 'Customer Name': 'John Smith',
-                                'All items': ['Front and rear brake cables', 'New set of pedal arms', 
-                                'Labor 3hrs'], 'Amount for each corresponding item': [100.00, 30.00, 15.00],
-                                'Total amount': 154.06 }""")
-    
-    return result['text'] if isinstance(result, dict) and 'text' in result else str(result)
+    result = query_engine.query("""
+        Could you format this invoice data in a dictionary format that can be used to create a dataframe? 
+        Identify the items and their descriptions using logical reasoning. The items and their descriptions (if any) 
+        from the invoice data should be put together. If an item has no description, only include the item name.
+        Dictionary keys should be: 
+        - 'Invoice Number'
+        - 'Date'
+        - 'Customer Name'
+        - 'All items' (a list of strings, each in the format 'Item Name: Description' or just 'Item Name' if there is no description)
+        - 'Quantities' (a list of quantities corresponding to each item)
+        - 'Amounts' (a list of amounts corresponding to each item)
+        - 'Tax' (Total Tax)
+        - 'Total Amount'
 
+        Example:
+        {
+            'Invoice Number': '<invoice number>',
+            'Date': '<invoice date>',
+            'Customer Name': '<customer name>',
+            'All items': ['Item 1: Description 1', 'Item 2'],
+            'Quantities': [1, 2],
+            'Amounts': [100, 200],
+            'Tax' : <Total Tax Amount>
+            'Total Amount': <Total Amount>
+        }
+        """)
+
+    return result['text'] if isinstance(result, dict) and 'text' in result else str(result)
 
 async def process_file(file, parser, llm, upload_directory):
     temp_file_path = os.path.join(upload_directory, file.name)
@@ -115,13 +131,13 @@ def main():
         if api_key and llamaindex_api_key:
             if model == "Gemini":
                 validity_model = verify_gemini_api_key(api_key)
-                if validity_model ==True:
+                if validity_model == True:
                     st.write(f"Valid {model} API key")
                 else:
                     st.write(f"Invalid {model} API key")
             elif model == "OpenAI":
                 validity_model = verify_gpt_api_key(api_key)
-                if validity_model ==True:
+                if validity_model == True:
                     st.write(f"Valid {model} API key")
                 else:
                     st.write(f"Invalid {model} API key")   
@@ -135,7 +151,7 @@ def main():
                     asyncio.set_event_loop(loop)
 
                 os.environ["OPENAI_API_KEY"] = api_key
-                llm = ChatOpenAI(model='gpt-4-turbo',temperature=0.6, max_tokens=2000,api_key=api_key)
+                llm = ChatOpenAI(model='gpt-4-turbo', temperature=0.6, max_tokens=2000, api_key=api_key)
                 print("OpenAI Configured")
                 return llm
 
@@ -171,24 +187,43 @@ def main():
 
         if uploaded_files and st.button("Process Files"):
             if not st.session_state.data_extracted:  
-                with st.spinner("Generating data_extracted for all files..."):
+                with st.spinner("Generating invoices for all files..."):
                     st.session_state.data_extracted = asyncio.run(process_all_files(uploaded_files, parser, llm, upload_directory))
             
             if st.session_state.data_extracted:
-                # Display summaries in separate sections
                 for idx, data_extracted in enumerate(st.session_state.data_extracted):
                     st.markdown(f"### File {idx + 1}: {data_extracted['File Name']}")
                     invoice_data = eval(data_extracted['Content'])  # Converting string representation of dict to actual dict
                     rows = []
-                    for idx, (item, amount) in enumerate(zip(invoice_data['All items'], invoice_data['Amount for each corresponding item'])):
+                    for idx, (item, quantity, amount) in enumerate(zip(
+                        invoice_data['All items'], 
+                        invoice_data['Quantities'],
+                        invoice_data['Amounts']
+                    )):
                         rows.append({
                             'Invoice Number': invoice_data['Invoice Number'] if idx == 0 else '',
                             'Date': invoice_data['Date'] if idx == 0 else '',
                             'Customer Name': invoice_data['Customer Name'] if idx == 0 else '',
                             'Item': item,
-                            'Amount': amount,
-                            'Total amount': invoice_data['Total amount'] if idx == 0 else ''
+                            'Quantity': int(quantity),
+                            'Tax': '',
+                            'Amount': int(amount),
+                            'Total amount': ''
                         })
+                    
+                    total_amount = sum(invoice_data['Amounts'])
+                    
+                    # Append a separate row for 'Tax' and 'Total Amount'
+                    rows.append({
+                        'Invoice Number': '',
+                        'Date': '',
+                        'Customer Name': '',
+                        'Item': '',
+                        'Quantity': '',
+                        'Tax': invoice_data['Tax'],
+                        'Amount': total_amount ,
+                        'Total amount': invoice_data['Total Amount']
+                    })
 
                     invoice_df = pd.DataFrame(rows)
                     st.table(invoice_df)
